@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "SavedItem": {
+      "title": "Saved Item",
+      "description": "An item saved by the user (URL, note, app, etc.)",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "content": { "type": "string", "description": "Raw input content" },
+        "type": { "type": "string", "enum": ["website", "app", "tool", "resource", "link", "idea", "note", "video"] },
+        "note": { "type": "string" },
+        "aiSummary": { "type": "string" },
+        "previewImage": { "type": "string" },
+        "favicon": { "type": "string" },
+        "categories": { "type": "array", "items": { "type": "string" } },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "ownerId", "createdAt", "updatedAt"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "A dynamic category created by AI",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "icon": { "type": "string" },
+        "itemCount": { "type": "number" },
+        "ownerId": { "type": "string" },
+        "aiGenerated": { "type": "boolean" }
+      },
+      "required": ["name", "ownerId"]
+    }
+  },
+  "firestore": {
+    "saved_items/{itemId}": {
+      "schema": "SavedItem",
+      "description": "Collection of all saved resources"
+    },
+    "categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Collections of categories for organization"
+    }
+  }
+}

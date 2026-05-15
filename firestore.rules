@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidSavedItem(data) {
+      return data.keys().hasAll(['title', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+        && data.ownerId == request.auth.uid
+        && data.createdAt == request.time
+        && (data.get('url', '') is string && data.get('url', '').size() <= 1000)
+        && (data.get('content', '') is string && data.get('content', '').size() <= 5000)
+        && (data.get('categories', []) is list)
+        && (data.get('tags', []) is list);
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['name', 'ownerId'])
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.ownerId == request.auth.uid;
+    }
+
+    // --- Collections ---
+
+    match /saved_items/{itemId} {
+      allow get: if isOwner(resource.data.ownerId);
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      
+      allow create: if isSignedIn() 
+        && isValidId(itemId)
+        && isValidSavedItem(request.resource.data);
+      
+      allow update: if isSignedIn()
+        && isOwner(resource.data.ownerId)
+        && isValidId(itemId)
+        && (
+          // Action: Update Metadata (title, note, categories, tags)
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'note', 'categories', 'tags', 'updatedAt', 'aiSummary', 'previewImage', 'favicon']))
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.createdAt == resource.data.createdAt
+        );
+        
+      allow delete: if isOwner(resource.data.ownerId);
+    }
+
+    match /categories/{categoryId} {
+      allow get: if isOwner(resource.data.ownerId);
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      
+      allow create: if isSignedIn()
+        && isValidId(categoryId)
+        && isValidCategory(request.resource.data);
+        
+      allow update: if isSignedIn()
+        && isOwner(resource.data.ownerId)
+        && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'icon', 'itemCount'])
+          && request.resource.data.ownerId == resource.data.ownerId
+        );
+        
+      allow delete: if isOwner(resource.data.ownerId);
+    }
+  }
+}
